@@ -66,7 +66,9 @@ with st.container():
     with left:
         st.markdown('<div class="panel">', unsafe_allow_html=True)
         st.subheader("Build your clips")
-        url=st.text_input("Video URL", placeholder="Paste a public video link (YouTube supported)")
+        source_mode=st.radio("Video source", ["Upload a video from your phone", "Use a video URL"], horizontal=True)
+        uploaded=st.file_uploader("Choose video file", type=["mp4","mov","mkv","webm","avi"]) if source_mode.startswith("Upload") else None
+        url=st.text_input("Video URL", placeholder="Paste a direct/public video link") if source_mode.startswith("Use") else ""
         a,b=st.columns(2)
         with a: count=st.slider("Number of clips",1,10,5)
         with b: language=st.selectbox("Transcript language",["Auto detect","English","French","Arabic","Spanish","German"])
@@ -79,17 +81,24 @@ with st.container():
         st.markdown('<div class="panel">', unsafe_allow_html=True)
         st.subheader("What you get")
         st.markdown("- **AI transcription** with Whisper\n- **Suggested moments** from transcript segments\n- **Vertical 9:16 exports** in MP4\n- **Preview and ZIP download**")
-        st.markdown('<p class="small">Tip: use a public video URL you are authorized to download and repurpose.</p>', unsafe_allow_html=True)
+        st.markdown('<p class="small">Tip: YouTube may block automated downloads. Upload the video file from your phone for the most reliable results.</p>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
 if generate:
-    if not url.strip(): st.error("Please paste a video URL first.")
+    if not uploaded and not url.strip(): st.error("Please upload a video or paste a URL first.")
     else:
         try:
             with tempfile.TemporaryDirectory() as tmp:
                 status=st.status("Preparing your video…", expanded=True)
-                video, info=download_video(url.strip(),tmp)
-                status.write(f"Downloaded: {info.get('title','video')}")
+                if uploaded:
+                    suffix=Path(uploaded.name).suffix or ".mp4"
+                    video=str(Path(tmp)/("uploaded_video"+suffix))
+                    with open(video,"wb") as out: out.write(uploaded.getbuffer())
+                    video_title=uploaded.name
+                else:
+                    video, info=download_video(url.strip(),tmp)
+                    video_title=info.get("title","video")
+                status.write(f"Video ready: {video_title}")
                 status.write("Transcribing audio with Whisper…")
                 model=load_model()
                 lang_map={"Auto detect":None,"English":"en","French":"fr","Arabic":"ar","Spanish":"es","German":"de"}
@@ -115,7 +124,7 @@ if generate:
                 status.write(f"Creating {len(chosen)} vertical clips…")
                 clips=make_clips(video,chosen,tmp,count,min_len,max_len)
                 status.update(label="Your clips are ready", state="complete", expanded=False)
-                st.success(f"Created {len(clips)} clips from: {info.get('title','your video')}")
+                st.success(f"Created {len(clips)} clips from: {video_title}")
                 zipbuf=io.BytesIO()
                 with zipfile.ZipFile(zipbuf,"w",zipfile.ZIP_DEFLATED) as z:
                     for clip in clips: z.write(clip,arcname=Path(clip).name)
