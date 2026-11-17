@@ -1,0 +1,12 @@
+[server]
+# Maximum uploaded file size per file, in megabytes (2 GB)
+maxUploadSize = 2048
+# Maximum size of a single message, in megabytes
+maxMessageSize = 2048
+
+[theme]
+base = "dark"
+primaryColor = "#7c9cff"
+backgroundColor = "#090d18"
+secondaryBackgroundColor = "#101726"
+textColor = "#f4f7fb"
